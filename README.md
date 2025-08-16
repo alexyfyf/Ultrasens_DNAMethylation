@@ -1,5 +1,11 @@
 # Ultrasens_DNAMethylation
-This repository is a collection of code for the associated publication, "A Tunable, Ultrasensitive Threshold in Enzymatic Activity governs the DNA Methylation Landscape". It contains various terminal/console commands, Python scripts written in Jupyter Notebook, and MATLAB files which maniupulate the required genomic datasets, perform parameterization of ensuing models to experimentla data, and create the visualizations shown in the publication. 
+This repository is a collection of code for the associated publication, "A Tunable, Ultrasensitive Threshold in Enzymatic Activity governs the DNA Methylation Landscape". It contains various terminal/console commands, Python scripts written in Jupyter Notebook, and MATLAB files which manipulate the required genomic datasets, perform parameterization of ensuing models to experimental data, and create the visualizations shown in the publication.
+
+In directory CMEFitting/
+Contains scripts for fitting the density-dependent methylation curves extracted from WGBS data using a CME model. The data-derived curves from HUES8 are stored in Save_HUES8WT_CpGsOnly_Chr1.mat. Run LoopFit.m to call the function which loads the data and performs the fit.
+
+In directory RunTemporalCMEExample/
+Contains scripts to compute the methylation versus density curves over time, according to the CME model, from a specified initial condition. Run Plot_ExampleTemporal.m.
 
 ## Goal
 Taking .bed file of WGBS (or other methylation) dataset(s), perform CGI-Level analysis of methylation macrostates, Individual CpG analysis of methyl fraction dependence on local CpG landscape, perform Hill function fitting of Individual CpG mean methylation, and finally fit landscape using Master Equation.
