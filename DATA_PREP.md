@@ -1,108 +1,274 @@
-# Input Preparation For The Notebook
+# Data Download And Input Preparation
 
-This documents the commands used to prepare the inputs expected by `Analysis of Human ESCs (HUES64WT_example).ipynb`.
+This document records how to prepare the files consumed by the Python pipeline. Large generated and downloaded files live under `data/`, which is intentionally ignored by Git.
 
-## Outputs
+## Required Tools
 
-- `data/CpGIsAnn_hg19_dec14.bed`
-  - Full hg19 UCSC CpG island annotation.
-  - No header, tab-delimited.
-  - Columns: `Chrom`, `CpGstart`, `CpGEnd`, `CpGNum`, `CGIlen`, `CGIno`.
+Install these before preparing data:
 
-- `data/HUES64WT_WGBS_CGI_int.bed`
-  - Intersected HUES64 WT WGBS methylation proportions and CpG island annotation.
-  - No header, tab-delimited.
-  - Columns: `Chrom`, `CpGstart`, `CpGEnd`, `WGBS`, `CpGNum`, `CGIlen`, `CGIno`.
+```bash
+conda install -c conda-forge bedtools bedops seqkit
+```
 
-## Reproducible Script
+The scripts also require the Python packages in `requirements.txt`.
 
-Run:
+## Directory Layout
+
+Recommended layout:
+
+```text
+data/
+  raw/
+  CpGIsAnn_hg19_dec14.bed
+  CpGIsAnn_hg19_chr1.bed
+  *_WGBS_proc.bed
+  *_WGBS_CGI_int.bed
+  IslandLvl_agg_*
+  CpGDensities_W50.bed
+  bedtools_density_intersections/
+```
+
+## 1. CpG Island Annotation
+
+Download the hg19 UCSC CpG island annotation:
+
+```bash
+mkdir -p data/raw
+curl -L \
+  https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/cpgIslandExt.txt.gz \
+  -o data/raw/cpgIslandExt_hg19.txt.gz
+```
+
+Convert it to the notebook/pipeline format:
+
+```bash
+gzip -cd data/raw/cpgIslandExt_hg19.txt.gz \
+  | awk 'BEGIN{OFS="\t"} {print $2,$3,$4,$8,$7,++n}' \
+  > data/CpGIsAnn_hg19_dec14.bed
+
+awk 'BEGIN{OFS="\t"} $1=="chr1" {print $0}' \
+  data/CpGIsAnn_hg19_dec14.bed \
+  > data/CpGIsAnn_hg19_chr1.bed
+```
+
+Output columns:
+
+```text
+Chrom  CpGstart  CpGEnd  CpGNum  CGIlen  CGIno
+```
+
+The helper script `scripts/prepare_ipynb_inputs.sh` performs this step automatically for the HUES64 WT notebook example.
+
+## 2. WGBS Downloads
+
+Download WGBS files from GEO using the accession pages listed in the paper. GEO file links can be downloaded with the URL pattern:
+
+```bash
+curl -L -C - \
+  "https://www.ncbi.nlm.nih.gov/geo/download/?acc=ACCESSION&file=FILENAME&format=file" \
+  -o data/FILENAME
+```
+
+Known original-repo dataset names used by `scripts/intersect_wgbs_cpg_density_all.py`:
+
+| Sample | Processed WGBS filename expected in `data/` | Output CpG-density filename |
+|---|---|---|
+| HUES64 WT | `GSM1112841_HUES64WT_WGBS_proc.bed` | `HUES64WT_CpGsOnly_Chr1.bed` |
+| HUES64 DNMT3A KO early | `GSM1545002_DNMT3A_KO_Early_proc.bed` | `HUES64_DNMT3Ako_early_CpGsOnly_Chr1.bed` |
+| HUES64 DNMT3B KO early | `GSM1545003_DNMT3B_KO_Early_proc.bed` | `HUES64_DNMT3Bko_early_CpGsOnly_Chr1.bed` |
+| HUES64 DNMT3A KO late | `GSM1545005_DNMT3A_KO_Late_proc.bed` | `HUES64_DNMT3Ako_late_CpGsOnly_Chr1.bed` |
+| HUES64 DNMT3B KO late | `GSM1545006_DNMT3B_KO_Late_proc.bed` | `HUES64_DNMT3Bko_late_CpGsOnly_Chr1.bed` |
+| HUES64 DKO early | `GSM1545004_DKO_Early_proc.bed` | `HUES64_DNMT3_dko_early_CpGsOnly_Chr1.bed` |
+| HUES64 DKO late | `GSM1545007_DKO_Late_proc.bed` | `HUES64_DNMT3_dko_late_CpGsOnly_Chr1.bed` |
+| HUES8 WT | `GSM3618718_HUES8_WT_WGBS_proc.bed` | `HUES8WT_CpGsOnly_Chr1.bed` |
+| HUES8 DNMT3AB DKO P6 | `GSM4458672_WGBS_HUES8_DKO_P6_proc.bed` | `HUES8_DKO_P6_CpGsOnly_Chr1.bed` |
+| HUES8 TET1-3 TKO | `GSM3618720_HUES8_TKO_WGBS_proc.bed` | `HUES8_TKO_CpGsOnly_Chr1.bed` |
+| HUES8 QKO | `GSM3618719_HUES8_QKO_WGBS_proc.bed` | `HUES8_QKO_CpGsOnly_Chr1.bed` |
+| HUES8 PKO P0 | `GSM3618721_HUES8_PKO_WGBS_proc.bed` | `HUES8_PKO_P0_CpGsOnly_Chr1.bed` |
+| HUES8 PKO P6 | `GSM3662266_HUES8_PKO_P6_WGBS_proc.bed` | `HUES8_PKO_P6_CpGsOnly_Chr1.bed` |
+| HUES8 PKO P20 | `GSM4458671_WGBS_HUES8_PKO_P20_proc.bed` | `HUES8_PKO_P20_CpGsOnly_Chr1.bed` |
+| IMR90 WT | `GSM432687_IMR90_WGBS_proc.bed` | `IMR90WT_CpGsOnly_Chr1.bed` |
+
+For IMR90 WT, use `GSM432687` to reproduce the paper/repo value. `GSM1204464` is another IMR90 sample and gives a different crossover.
+
+## 3. Normalize WGBS Files
+
+The pipeline expects processed WGBS BED files:
+
+```text
+chr  start  end  WGBS
+```
+
+`WGBS` must be a methylation fraction from 0 to 1.
+
+### WIG Or WIG.GZ Files
+
+Convert WIG to BED with `wig2bed`:
+
+```bash
+gzip -cd data/SAMPLE.wig.gz | wig2bed > data/SAMPLE.bed
+```
+
+Then apply the same row filtering and sorting used in the original README:
+
+```bash
+awk 'BEGIN{OFS="\t"} NR % 2 == 0 {print $1,$2,$3,$5}' \
+  data/SAMPLE.bed \
+  | sort -k1,1 -k2,2n \
+  > data/SAMPLE_WGBS_proc.bed
+```
+
+### BED Or BED.GZ Files
+
+If the downloaded BED already has `chr start end methyl_fraction`, sort it:
+
+```bash
+gzip -cd data/SAMPLE.bed.gz \
+  | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4}' \
+  | sort -k1,1 -k2,2n \
+  > data/SAMPLE_WGBS_proc.bed
+```
+
+If the BED stores methylated and total counts, compute the fraction explicitly:
+
+```bash
+gzip -cd data/SAMPLE.bed.gz \
+  | awk 'BEGIN{OFS="\t"} $5>0 {print $1,$2,$3,$4/$5}' \
+  | sort -k1,1 -k2,2n \
+  > data/SAMPLE_WGBS_proc.bed
+```
+
+Adjust `$4/$5` to the correct count columns for the downloaded file.
+
+### Bismark Coverage Files
+
+Bismark coverage files have:
+
+```text
+chromosome  start_position  end_position  methylation_percentage  count_methylated  count_unmethylated
+```
+
+Convert `.cov` or `.cov.gz` to processed WGBS BED:
+
+```bash
+python scripts/parse_bismark_cov.py \
+  --cov data/SAMPLE.cov.gz \
+  --output data/SAMPLE_WGBS_proc.bed
+```
+
+By default the methylation fraction is computed from exact counts. Use `--methylation-source percentage` to use the percentage column instead.
+
+## 4. Prepare Notebook And CGI-Level Inputs
+
+The HUES64 WT notebook example can be prepared with:
 
 ```bash
 bash scripts/prepare_ipynb_inputs.sh
 ```
 
-The script downloads:
+This downloads:
 
 - UCSC hg19 `cpgIslandExt.txt.gz`
 - GEO `GSM1112841_BI.HUES64.Bisulfite-Seq.WGBS_Lib_39.wig.gz`
 
-It then runs:
+It writes:
 
-```bash
-gzip -cd data/GSM1112841_BI.HUES64.Bisulfite-Seq.WGBS_Lib_39.wig.gz \
-  | wig2bed \
-  > data/GSM1112841_BI.HUES64.Bisulfite-Seq.WGBS_Lib_39.bed
+- `data/CpGIsAnn_hg19_dec14.bed`
+- `data/CpGIsAnn_hg19_chr1.bed`
+- `data/GSM1112841_HUES64WT_WGBS_proc.bed`
+- `data/HUES64WT_WGBS_CGI_int.bed`
 
-awk 'BEGIN{OFS="\t"} NR % 2 == 0 {print $1,$2,$3,$5}' \
-  data/GSM1112841_BI.HUES64.Bisulfite-Seq.WGBS_Lib_39.bed \
-  | sort -k1,1 -k2,2n \
-  > data/GSM1112841_HUES64WT_WGBS_proc.bed
-
-bedtools intersect \
-  -a data/GSM1112841_HUES64WT_WGBS_proc.bed \
-  -b data/CpGIsAnn_hg19_dec14.bed \
-  -wa -wb -sorted \
-  | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$8,$9,$10}' \
-  > data/HUES64WT_WGBS_CGI_int.bed
-```
-
-## Current Validation
-
-- `data/CpGIsAnn_hg19_dec14.bed`: 30,344 CpG islands, matching the notebook's expected whole-genome annotation count.
-- `data/HUES64WT_WGBS_CGI_int.bed`: 2,004,040 intersected WGBS rows.
-- Unique CGIs with WGBS values: 27,265, matching the notebook output.
-
-To repeat the notebook input check without the plotting/Jupyter dependencies:
+Validate the notebook-compatible files:
 
 ```bash
 python scripts/check_ipynb_inputs.py
 ```
 
-This writes notebook-equivalent CSV exports to `data/ipynb_run_check/`.
+For any processed WGBS file, create the CGI intersection with:
 
-## Additional WT Bivariate Inputs
+```bash
+bedtools intersect \
+  -a data/SAMPLE_WGBS_proc.bed \
+  -b data/CpGIsAnn_hg19_dec14.bed \
+  -wa -wb -sorted \
+  | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$8,$9,$10}' \
+  > data/SAMPLE_WGBS_CGI_int.bed
+```
 
-The bivariate CGI-length analysis also needs HUES8 WT and IMR90 WT island-level files. I prepared:
+Then aggregate to island level:
 
-- `data/IslandLvl_agg_HUES64WT`
-- `data/IslandLvl_agg_HUES8WT`
-- `data/IslandLvl_agg_IMR90WT`
+```bash
+python scripts/aggregate_cgi_level.py \
+  --cgi-intersection data/SAMPLE_WGBS_CGI_int.bed \
+  --output data/IslandLvl_agg_SAMPLE
+```
 
-Sources:
+## 5. Prepare CpG Coordinates For Individual CpG Analysis
 
-- HUES8 WT: `GSM3618718_HUES8_WT_WGBS.bed.gz`
-- IMR90 WT, paper/repo-matching input: `GSM432687_UCSD.IMR90.Bisulfite-Seq.combined.wig.gz`
-- IMR90 WT, alternate input tested: `GSM1204464_BiSeq_cpgMethylation_BioSam_1502_IMR_90_304071.BiSeq.bed.gz`
+Download hg19 chromosome FASTA files from UCSC. For chr1 only:
 
-The normalized WGBS BED files are:
+```bash
+rsync -avzP rsync://hgdownload.cse.ucsc.edu/goldenPath/hg19/chromosomes/chr1.fa.gz data/
+```
 
-- `data/GSM3618718_HUES8_WT_WGBS_proc.bed`
-- `data/GSM432687_IMR90_WGBS_proc.bed`
-- `data/GSM1204464_IMR90_WGBS_proc.bed`
-- `data/GSM1204464_IMR90_WGBS_ratio_proc.bed`
+Find CpG positions with `seqkit`:
 
-The original repository command `WGBS_CpGIntersect_AllData.command` points IMR90 WT to
-`GSM432687_IMR90_WGBS_proc.bed`. `GSM1204464` is another IMR90 WGBS sample and gives a
-different crossover, so it should not be used for reproducing the paper's Figure 2
-IMR90 WT panel.
+```bash
+gzip -cd data/chr1.fa.gz \
+  | seqkit locate -P -p cg \
+  > data/chr1_cpgs.csv
+```
 
-Prepared island-level IMR90 files:
+The density script expects a CSV with a `start` column, which is the default `seqkit locate` output.
 
-- `data/IslandLvl_agg_IMR90WT`: canonical paper-matching island file from `GSM432687`.
-- `data/IslandLvl_agg_IMR90WT_GSM432687`: same paper-matching file, with accession in name.
-- `data/IslandLvl_agg_IMR90WT_GSM1204464_score`: alternate file using the rounded BED score.
-- `data/IslandLvl_agg_IMR90WT_GSM1204464_ratio`: alternate file using exact methylated/total ratio.
+## 6. Prepare CpG-Density Intersections
 
-The MATLAB-exact bivariate results are:
+Calculate local CpG density:
 
-- HUES64 WT: 351 bp
-- HUES8 WT: 321 bp
-- IMR90 WT, `GSM432687`: 214 bp
-- IMR90 WT, alternate `GSM1204464`: 306 bp
+```bash
+python scripts/calculate_cpg_density.py \
+  --cpg-csv data/chr1_cpgs.csv \
+  --window 50 \
+  --chrom chr1 \
+  --output data/CpGDensities_W50.bed
+```
 
-The combined result files are in `data/figure_checks/`:
+Intersect one processed WGBS file with CpG density:
 
-- `bivariate_human_wt_summary.json`
-- `bivariate_human_wt_classes.png`
-- `bivariate_human_wt_matlab_style.png`
+```bash
+python scripts/intersect_wgbs_cpg_density.py \
+  --wgbs-bed data/SAMPLE_WGBS_proc.bed \
+  --density-bed data/CpGDensities_W50.bed \
+  --output data/SAMPLE_CpGsOnly_Chr1.bed
+```
+
+Or use `bedtools`:
+
+```bash
+bedtools intersect \
+  -a data/SAMPLE_WGBS_proc.bed \
+  -b data/CpGDensities_W50.bed \
+  -wa -wb -sorted \
+  | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$9}' \
+  > data/SAMPLE_CpGsOnly_Chr1.bed
+```
+
+Run all original-repo names with:
+
+```bash
+bash scripts/intersect_wgbs_cpg_density_all_bedtools.sh \
+  data \
+  data/bedtools_density_intersections \
+  data/CpGDensities_W50.bed
+```
+
+## 7. Known Prepared Results
+
+The following paper-matching WT checks were generated from the prepared local files:
+
+- HUES64 WT: 351 bp CGI crossover.
+- HUES8 WT: 321 bp CGI crossover.
+- IMR90 WT, `GSM432687`: 214 bp CGI crossover.
+- IMR90 WT, alternate `GSM1204464`: 306 bp CGI crossover.
+
+The combined bivariate check outputs are written under `data/figure_checks/` when using the commands in `PYTHON_PIPELINE.md`.

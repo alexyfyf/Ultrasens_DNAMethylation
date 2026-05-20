@@ -7,6 +7,13 @@ Contains scripts for fitting the density-dependent methylation curves extracted 
 In directory RunTemporalCMEExample/
 Contains scripts to compute the methylation versus density curves over time, according to the CME model, from a specified initial condition. Run Plot_ExampleTemporal.m.
 
+## Python rewrite
+
+The MATLAB analysis workflow has been rewritten as Python command-line scripts under `scripts/`, with reusable functions in `python/ultrasens/`.
+
+- See `PYTHON_PIPELINE.md` for the complete step-by-step Python workflow, following the original order: CpG island analysis and plots first, then individual CpG density analysis, switch plots, and CME fitting.
+- See `DATA_PREP.md` for data downloads, WGBS normalization, CGI annotation preparation, Bismark coverage parsing, and CpG-density input preparation.
+
 ## Goal
 Taking .bed file of WGBS (or other methylation) dataset(s), perform CGI-Level analysis of methylation macrostates, Individual CpG analysis of methyl fraction dependence on local CpG landscape, perform Hill function fitting of Individual CpG mean methylation, and finally fit landscape using Master Equation.
 
@@ -37,8 +44,8 @@ cat chr1.fa | seqkit locate -P -p  cg > {OUTPUT_FILENAME}.csv
 ## Included Scripts
 ### CGI-Level Analysis
 1. Analysis of Human ESCS (HUES64WT_example)
-   1. Written for Python/Jupter Notebook (.ipynb)
-   2. Provides visualization of CpG Number vs. CGI Length, along with outputting required "IslandLvl_Agg_###", which are used in the ensuing MATLB scripts
+   1. Written for Python/Jupyter Notebook (.ipynb)
+   2. Provides visualization of CpG Number vs. CGI Length, along with outputting required "IslandLvl_Agg_###", which are used in the ensuing MATLAB scripts
    3. The WGBS (.bed) files must be sorted and intersected with the genome assembly (using the bedtools package). This can be accomplished using the following code block from the terminal environment:
 ```
 # Step 1: Sorting WGBS file
@@ -56,7 +63,7 @@ bedtools intersect -a WGBS_BED_PATH -b  CGI_PATH -wa -wb -sorted | awk ‘{print
 
 2. BivariateHistogram_HumanWT_example
    1. Written for MATLAB  2023b (.m)
-   2. Provides bivariate histograms and CpG island classifications shown in Figure (???).
+   2. Provides bivariate histograms and CpG island classifications shown in the paper figures.
    3. Needs the "IslandLvl_Agg_###" files for HUES64, HUES8, and IMR90 WT cell lines for the ensuing example.
 
 3. IndividualCGIMethylationChange_HUES64_example
@@ -80,4 +87,4 @@ bedtools intersect -a WGBS_BED_PATH -b  CGI_PATH -wa -wb -sorted | awk ‘{print
   
 4. ExampleCMEFit (Folder)
    1. Contains MATLAB scripts, initial parameters, example data (of HUES8WT, in a .mat file) which performs fitting on the derived experimental landscape, and returns a fitted parameter set.
-   2. To fit ensuing data, run "CallFitting.m", and change "DataName" to file containing data-derived curve for hyper-/hypomethylatred fractions as a function of CpG Density.
+   2. To fit ensuing data, run "CallFitting.m", and change "DataName" to file containing data-derived curve for hyper-/hypomethylated fractions as a function of CpG Density.
