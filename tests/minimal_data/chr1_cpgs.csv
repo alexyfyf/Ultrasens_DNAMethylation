@@ -1,0 +1,9 @@
+seqID,patternName,pattern,strand,start,end,matched
+chr1,cg,cg,+,10,11,cg
+chr1,cg,cg,+,15,16,cg
+chr1,cg,cg,+,21,22,cg
+chr1,cg,cg,+,30,31,cg
+chr1,cg,cg,+,45,46,cg
+chr1,cg,cg,+,70,71,cg
+chr1,cg,cg,+,100,101,cg
+
