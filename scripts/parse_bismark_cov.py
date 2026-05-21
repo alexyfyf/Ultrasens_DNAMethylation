@@ -22,6 +22,17 @@ def main() -> None:
     )
     parser.add_argument("--min-coverage", type=int, default=1, help="Drop rows with total read coverage below this value.")
     parser.add_argument("--no-sort", action="store_true", help="Preserve input row order instead of sorting by chr/start/end.")
+    parser.add_argument(
+        "--deduplicate-cpg-strands",
+        action="store_true",
+        help="Collapse adjacent opposite-strand rows that represent the same CpG dyad.",
+    )
+    parser.add_argument(
+        "--deduplicate-method",
+        choices=["first", "second", "mean"],
+        default="second",
+        help="How to collapse paired CpG-strand rows. 'second' matches the original README convention.",
+    )
     args = parser.parse_args()
 
     out = parse_bismark_coverage(
@@ -30,6 +41,8 @@ def main() -> None:
         methylation_source=args.methylation_source,
         min_coverage=args.min_coverage,
         sort=not args.no_sort,
+        deduplicate_cpg_strands=args.deduplicate_cpg_strands,
+        deduplicate_method=args.deduplicate_method,
     )
     print(f"wrote {len(out)} WGBS rows to {args.output}")
 

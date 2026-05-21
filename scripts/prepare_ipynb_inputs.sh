@@ -13,6 +13,7 @@ GSM1112841_URL="https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSM1112841&file=G
 CGI_RAW="$RAW_DIR/cpgIslandExt_hg19.txt.gz"
 WIG_GZ="$DATA_DIR/GSM1112841_BI.HUES64.Bisulfite-Seq.WGBS_Lib_39.wig.gz"
 WIG_BED="$DATA_DIR/GSM1112841_BI.HUES64.Bisulfite-Seq.WGBS_Lib_39.bed"
+WGBS_ALL_STRANDS="$DATA_DIR/GSM1112841_HUES64WT_WGBS_all_strands.bed"
 WGBS_PROC="$DATA_DIR/GSM1112841_HUES64WT_WGBS_proc.bed"
 CGI_BED="$DATA_DIR/CpGIsAnn_hg19_dec14.bed"
 CGI_CHR1_BED="$DATA_DIR/CpGIsAnn_hg19_chr1.bed"
@@ -24,6 +25,7 @@ command -v awk >/dev/null
 command -v sort >/dev/null
 command -v wig2bed >/dev/null
 command -v bedtools >/dev/null
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 if [[ ! -s "$CGI_RAW" ]]; then
   curl -L "$UCSC_CGI_URL" -o "$CGI_RAW"
@@ -46,18 +48,29 @@ if [[ ! -s "$WIG_BED" ]]; then
   gzip -cd "$WIG_GZ" | wig2bed > "$WIG_BED"
 fi
 
-# Repo README format: keep every second WIG-derived row and write chr/start/end/methyl_fraction.
-awk 'BEGIN{OFS="\t"} NR % 2 == 0 {print $1,$2,$3,$5}' "$WIG_BED" \
+# First normalize the WIG-derived BED to chr/start/end/methyl_fraction. This file
+# can contain adjacent opposite-strand rows for the same CpG dyad.
+awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$5}' "$WIG_BED" \
   | sort -k1,1 -k2,2n \
-  > "$WGBS_PROC"
+  > "$WGBS_ALL_STRANDS"
+
+# Collapse adjacent CpG-strand pairs to one row per CpG dyad. The default
+# "second" method matches the original README's awk 'NR % 2 == 0' convention,
+# but makes the strand-deduplication step explicit and reusable for BED/COV data.
+"$PYTHON_BIN" "$ROOT_DIR/scripts/deduplicate_cpg_strands.py" \
+  --input "$WGBS_ALL_STRANDS" \
+  --output "$WGBS_PROC.tmp" \
+  --method second
+mv "$WGBS_PROC.tmp" "$WGBS_PROC"
 
 # Notebook input format: Chrom, CpGstart, CpGEnd, WGBS, CpGNum, CGIlen, CGIno
 bedtools intersect -a "$WGBS_PROC" -b "$CGI_BED" -wa -wb -sorted \
   | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$8,$9,$10}' \
-  > "$IPYNB_INPUT"
+  > "$IPYNB_INPUT.tmp"
+mv "$IPYNB_INPUT.tmp" "$IPYNB_INPUT"
 
 echo "Wrote $CGI_BED"
 echo "Wrote $CGI_CHR1_BED"
+echo "Wrote $WGBS_ALL_STRANDS"
 echo "Wrote $WGBS_PROC"
 echo "Wrote $IPYNB_INPUT"
-

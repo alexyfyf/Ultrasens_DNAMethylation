@@ -32,7 +32,7 @@ export MPLCONFIGDIR=/private/tmp/mplconfig
 
 The Python scripts use these normalized file formats:
 
-- Processed WGBS BED: tab-delimited `chr start end WGBS`, where `WGBS` is a methylation fraction from 0 to 1.
+- Processed WGBS BED: tab-delimited `chr start end WGBS`, where `WGBS` is a methylation fraction from 0 to 1 and each CpG dyad appears once.
 - CGI annotation BED: tab-delimited `Chrom CpGstart CpGEnd CpGNum CGIlen CGIno`.
 - WGBS/CGI intersection: tab-delimited `Chrom CpGstart CpGEnd WGBS CpGNum CGIlen CGIno`.
 - CpG-density BED: tab-delimited `chr start end Density`.
@@ -44,6 +44,7 @@ See `DATA_PREP.md` for download and conversion details.
 
 - `CpGDensity_Calc.m` -> `scripts/calculate_cpg_density.py`
 - `WGBS_CpGIntersect_AllData.command` -> `scripts/intersect_wgbs_cpg_density.py`, `scripts/intersect_wgbs_cpg_density_all.py`, or `scripts/intersect_wgbs_cpg_density_all_bedtools.sh`
+- Opposite-strand CpG dyad deduplication for WIG/BED/COV inputs -> `scripts/deduplicate_cpg_strands.py` or `scripts/parse_bismark_cov.py --deduplicate-cpg-strands`
 - `BivariateHistogram_HumanWT_example.m` -> `scripts/bivariate_histogram_human_wt.py`
 - `IndividualCGIMethylationChange_HUES64_example.m` -> `scripts/individual_cgi_methylation_change.py`
 - `ReadPlotData_WT_example.m` -> `scripts/read_plot_data_wt.py`, `scripts/read_plot_data_wt_all.py`, `scripts/plot_figure5a_cpg_density.py`, and `scripts/plot_switch_parameters.py`

@@ -101,6 +101,12 @@ chr  start  end  WGBS
 
 `WGBS` must be a methylation fraction from 0 to 1.
 
+Some WGBS exports report the two opposite-strand observations for the same CpG
+dinucleotide as adjacent genomic rows. The downstream analysis expects one row
+per CpG dyad, so collapse those paired strand rows when they are present. The
+helper used below keeps the second row by default, matching the original README
+command `awk 'NR % 2 == 0'`.
+
 ### WIG Or WIG.GZ Files
 
 Convert WIG to BED with `wig2bed`:
@@ -109,14 +115,22 @@ Convert WIG to BED with `wig2bed`:
 gzip -cd data/SAMPLE.wig.gz | wig2bed > data/SAMPLE.bed
 ```
 
-Then apply the same row filtering and sorting used in the original README:
+Then normalize and deduplicate adjacent opposite-strand CpG rows:
 
 ```bash
-awk 'BEGIN{OFS="\t"} NR % 2 == 0 {print $1,$2,$3,$5}' \
+awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$5}' \
   data/SAMPLE.bed \
   | sort -k1,1 -k2,2n \
-  > data/SAMPLE_WGBS_proc.bed
+  > data/SAMPLE_WGBS_all_strands.bed
+
+python scripts/deduplicate_cpg_strands.py \
+  --input data/SAMPLE_WGBS_all_strands.bed \
+  --output data/SAMPLE_WGBS_proc.bed \
+  --method second
 ```
+
+If you have verified that the file is already one row per CpG dyad, you can skip
+the deduplication step and write directly to `*_WGBS_proc.bed`.
 
 ### BED Or BED.GZ Files
 
@@ -126,19 +140,52 @@ If the downloaded BED already has `chr start end methyl_fraction`, sort it:
 gzip -cd data/SAMPLE.bed.gz \
   | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4}' \
   | sort -k1,1 -k2,2n \
+  > data/SAMPLE_WGBS_all_strands.bed
+
+python scripts/deduplicate_cpg_strands.py \
+  --input data/SAMPLE_WGBS_all_strands.bed \
+  --output data/SAMPLE_WGBS_proc.bed \
+  --method second
+```
+
+If the BED is known to be one row per CpG dyad, sort directly:
+
+```bash
+gzip -cd data/SAMPLE.bed.gz \
+  | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4}' \
+  | sort -k1,1 -k2,2n \
   > data/SAMPLE_WGBS_proc.bed
 ```
 
-If the BED stores methylated and total counts, compute the fraction explicitly:
+If the BED stores methylated and total counts, compute the fraction explicitly,
+then deduplicate if paired strand rows are present:
 
 ```bash
 gzip -cd data/SAMPLE.bed.gz \
   | awk 'BEGIN{OFS="\t"} $5>0 {print $1,$2,$3,$4/$5}' \
   | sort -k1,1 -k2,2n \
-  > data/SAMPLE_WGBS_proc.bed
+  > data/SAMPLE_WGBS_all_strands.bed
+
+python scripts/deduplicate_cpg_strands.py \
+  --input data/SAMPLE_WGBS_all_strands.bed \
+  --output data/SAMPLE_WGBS_proc.bed \
+  --method mean
 ```
 
-Adjust `$4/$5` to the correct count columns for the downloaded file.
+Adjust `$4/$5` to the correct count columns for the downloaded file. Use
+`--method mean` when the two strand rows can have different methylation values
+and you want a dyad-level average; use `--method second` to reproduce the older
+README convention.
+
+You can require near-equal paired values before collapsing:
+
+```bash
+python scripts/deduplicate_cpg_strands.py \
+  --input data/SAMPLE_WGBS_all_strands.bed \
+  --output data/SAMPLE_WGBS_proc.bed \
+  --method second \
+  --max-methylation-diff 0.001
+```
 
 ### Bismark Coverage Files
 
@@ -157,6 +204,17 @@ python scripts/parse_bismark_cov.py \
 ```
 
 By default the methylation fraction is computed from exact counts. Use `--methylation-source percentage` to use the percentage column instead.
+
+If the Bismark coverage file contains adjacent opposite-strand CpG rows, collapse
+them during parsing:
+
+```bash
+python scripts/parse_bismark_cov.py \
+  --cov data/SAMPLE.cov.gz \
+  --output data/SAMPLE_WGBS_proc.bed \
+  --deduplicate-cpg-strands \
+  --deduplicate-method mean
+```
 
 ## 4. Prepare Notebook And CGI-Level Inputs
 
