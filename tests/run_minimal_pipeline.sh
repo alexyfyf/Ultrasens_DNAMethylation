@@ -34,8 +34,14 @@ grep -q $'chr1\t21\t22\t0.9' "$OUT_DIR/wgbs_dedup_second.bed"
 "$PYTHON_BIN" "$ROOT_DIR/scripts/parse_bismark_cov.py" \
   --cov "$ROOT_DIR/tests/minimal_data/bismark_example.cov" \
   --output "$OUT_DIR/bismark_proc.bed" \
-  --deduplicate-cpg-strands \
-  --deduplicate-method mean
+  --deduplicate-cpg-strands
 test -s "$OUT_DIR/bismark_proc.bed"
+
+printf 'chr1\t10\t10\t75.0\t3\t1\nchr1\t11\t11\t0.0\t0\t6\n' > "$OUT_DIR/bismark_paired.cov"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/parse_bismark_cov.py" \
+  --cov "$OUT_DIR/bismark_paired.cov" \
+  --output "$OUT_DIR/bismark_paired_weighted.bed" \
+  --deduplicate-cpg-strands
+grep -q $'chr1\t10\t11\t0.3' "$OUT_DIR/bismark_paired_weighted.bed"
 
 echo "minimal pipeline ok"

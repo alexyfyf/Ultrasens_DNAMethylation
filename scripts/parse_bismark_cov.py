@@ -29,9 +29,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--deduplicate-method",
-        choices=["first", "second", "mean"],
-        default="second",
-        help="How to collapse paired CpG-strand rows. 'second' matches the original README convention.",
+        choices=["first", "second", "mean", "coverage-weighted"],
+        default="coverage-weighted",
+        help=(
+            "How to collapse paired CpG-strand rows. 'coverage-weighted' combines methylated/unmethylated "
+            "counts before calculating WGBS; 'second' matches the original README convention."
+        ),
     )
     args = parser.parse_args()
 

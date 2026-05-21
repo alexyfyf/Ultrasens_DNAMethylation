@@ -26,7 +26,7 @@ def parse_bismark_coverage(
     min_coverage: int = 1,
     sort: bool = True,
     deduplicate_cpg_strands: bool = False,
-    deduplicate_method: str = "second",
+    deduplicate_method: str = "coverage-weighted",
 ) -> pd.DataFrame:
     """Parse Bismark .cov/.cov.gz into the pipeline's 4-column WGBS BED format.
 
@@ -38,6 +38,10 @@ def parse_bismark_coverage(
     """
     if methylation_source not in {"counts", "percentage"}:
         raise ValueError("methylation_source must be 'counts' or 'percentage'")
+    if deduplicate_method not in {"first", "second", "mean", "coverage-weighted"}:
+        raise ValueError("deduplicate_method must be 'first', 'second', 'mean', or 'coverage-weighted'")
+    if methylation_source == "percentage" and deduplicate_method == "coverage-weighted":
+        raise ValueError("coverage-weighted deduplication requires methylation_source='counts'")
     if min_coverage < 0:
         raise ValueError("min_coverage must be non-negative")
 
@@ -61,6 +65,9 @@ def parse_bismark_coverage(
         keep = total >= min_coverage
         df = df.loc[keep].copy()
         total = total.loc[keep]
+        if deduplicate_cpg_strands and deduplicate_method == "coverage-weighted":
+            df = deduplicate_bismark_cpg_strands_counts(df, sort=sort)
+            total = df["count_methylated"] + df["count_unmethylated"]
         if methylation_source == "counts":
             wgbs = np.divide(
                 df["count_methylated"].to_numpy(float),
@@ -84,7 +91,7 @@ def parse_bismark_coverage(
             raise ValueError("Parsed methylation fractions must be within [0, 1]")
         if sort and not out.empty:
             out = out.sort_values(["chr", "start", "end"], kind="mergesort").reset_index(drop=True)
-        if deduplicate_cpg_strands:
+        if deduplicate_cpg_strands and deduplicate_method != "coverage-weighted":
             out = deduplicate_adjacent_cpg_strands(out, method=deduplicate_method, sort=False)
 
     if output_path is not None:
@@ -92,6 +99,36 @@ def parse_bismark_coverage(
         ensure_dir(output_path.parent)
         out.to_csv(output_path, sep="\t", header=False, index=False)
     return out
+
+
+def deduplicate_bismark_cpg_strands_counts(df: pd.DataFrame, sort: bool = True) -> pd.DataFrame:
+    """Coverage-weighted collapse of adjacent Bismark strand rows before fraction calculation."""
+    work = df[BISMARK_COV_COLUMNS].copy()
+    work["chr"] = work["chr"].astype(str)
+    if sort:
+        work = work.sort_values(["chr", "start_1based", "end_1based"], kind="mergesort").reset_index(drop=True)
+
+    rows = []
+    i = 0
+    while i < len(work):
+        current = work.iloc[i].copy()
+        if i + 1 < len(work):
+            nxt = work.iloc[i + 1]
+            adjacent = current["chr"] == nxt["chr"] and int(current["end_1based"]) + 1 == int(nxt["start_1based"])
+            if adjacent:
+                meth = float(current["count_methylated"]) + float(nxt["count_methylated"])
+                unmeth = float(current["count_unmethylated"]) + float(nxt["count_unmethylated"])
+                total = meth + unmeth
+                keep = nxt.copy()
+                keep["count_methylated"] = meth
+                keep["count_unmethylated"] = unmeth
+                keep["methylation_percentage"] = 100.0 * meth / total if total > 0 else np.nan
+                rows.append(keep)
+                i += 2
+                continue
+        rows.append(current)
+        i += 1
+    return pd.DataFrame(rows, columns=BISMARK_COV_COLUMNS).reset_index(drop=True)
 
 
 def deduplicate_adjacent_cpg_strands(

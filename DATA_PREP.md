@@ -206,15 +206,25 @@ python scripts/parse_bismark_cov.py \
 By default the methylation fraction is computed from exact counts. Use `--methylation-source percentage` to use the percentage column instead.
 
 If the Bismark coverage file contains adjacent opposite-strand CpG rows, collapse
-them during parsing:
+them during parsing. The default deduplication method for Bismark is
+coverage-weighted, which combines methylated/unmethylated counts from the paired
+strand rows before calculating the dyad methylation fraction:
 
 ```bash
 python scripts/parse_bismark_cov.py \
   --cov data/SAMPLE.cov.gz \
   --output data/SAMPLE_WGBS_proc.bed \
-  --deduplicate-cpg-strands \
-  --deduplicate-method mean
+  --deduplicate-cpg-strands
 ```
+
+The coverage-weighted dyad value is:
+
+```text
+dyad_WGBS = (meth1 + meth2) / (meth1 + unmeth1 + meth2 + unmeth2)
+```
+
+Use `--deduplicate-method mean` only if you explicitly want an unweighted
+average of the two strand-level methylation fractions.
 
 ## 4. Prepare Notebook And CGI-Level Inputs
 
