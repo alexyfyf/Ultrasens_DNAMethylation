@@ -138,7 +138,7 @@ def summarize_cpg_density_file(
     hypo_cutoff: float = 0.2,
     output_prefix: str | Path | None = None,
 ) -> dict[str, np.ndarray | float]:
-    df = pd.read_csv(input_path, sep=None, engine="python")
+    df = pd.read_csv(input_path, sep="\t", header=None)
     df = maybe_named_columns(df, CPG_WGBS_DENSITY_COLUMNS)
     x = df["Density"].to_numpy(float)
     y = df["WGBS"].to_numpy(float)

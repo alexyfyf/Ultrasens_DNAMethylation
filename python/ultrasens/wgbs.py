@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gzip
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +29,7 @@ def parse_bismark_coverage(
     sort: bool = True,
     deduplicate_cpg_strands: bool = False,
     deduplicate_method: str = "coverage-weighted",
+    chunksize: int | None = None,
 ) -> pd.DataFrame:
     """Parse Bismark .cov/.cov.gz into the pipeline's 4-column WGBS BED format.
 
@@ -44,6 +47,20 @@ def parse_bismark_coverage(
         raise ValueError("coverage-weighted deduplication requires methylation_source='counts'")
     if min_coverage < 0:
         raise ValueError("min_coverage must be non-negative")
+    if chunksize is not None:
+        if chunksize <= 0:
+            raise ValueError("chunksize must be positive")
+        if sort:
+            raise ValueError("chunked Bismark parsing requires sort=False; sort the output with bedtools")
+        return parse_bismark_coverage_chunked(
+            input_path,
+            output_path,
+            methylation_source=methylation_source,
+            min_coverage=min_coverage,
+            deduplicate_cpg_strands=deduplicate_cpg_strands,
+            deduplicate_method=deduplicate_method,
+            chunksize=chunksize,
+        )
 
     df = pd.read_csv(
         input_path,
@@ -99,6 +116,108 @@ def parse_bismark_coverage(
         ensure_dir(output_path.parent)
         out.to_csv(output_path, sep="\t", header=False, index=False)
     return out
+
+
+def parse_bismark_coverage_chunked(
+    input_path: str | Path,
+    output_path: str | Path | None,
+    methylation_source: str = "counts",
+    min_coverage: int = 1,
+    deduplicate_cpg_strands: bool = False,
+    deduplicate_method: str = "coverage-weighted",
+    chunksize: int = 1_000_000,
+) -> pd.DataFrame:
+    """Stream large Bismark coverage files without materializing all rows.
+
+    Chunked parsing preserves input order. If sorted output is needed for bedtools,
+    write to disk and sort the result after this function completes.
+    """
+    if output_path is None:
+        raise ValueError("chunked Bismark parsing requires an output_path")
+    output_path = Path(output_path)
+    ensure_dir(output_path.parent)
+    total_rows = 0
+    prev: tuple[str, int, int, float, float, float] | None = None
+    opener = gzip.open if str(input_path).endswith(".gz") else open
+
+    def parse_line(line: str) -> tuple[str, int, int, float, float, float] | None:
+        if not line.strip() or line.startswith("#"):
+            return None
+        fields = line.rstrip("\n").split("\t")
+        if len(fields) < 6:
+            raise ValueError("Bismark coverage rows must have at least 6 tab-delimited columns")
+        chrom = fields[0]
+        start = int(fields[1])
+        end = int(fields[2])
+        if start < 1 or end < start:
+            raise ValueError("Bismark coordinates must be 1-based with end >= start")
+        pct = float(fields[3])
+        meth = float(fields[4])
+        unmeth = float(fields[5])
+        return chrom, start, end, pct, meth, unmeth
+
+    def fraction(row: tuple[str, int, int, float, float, float]) -> float:
+        _chrom, _start, _end, pct, meth, unmeth = row
+        total = meth + unmeth
+        return meth / total if methylation_source == "counts" and total > 0 else pct / 100.0
+
+    def write_row(handle, row: tuple[str, int, int, float, float, float], value: float | None = None) -> int:
+        chrom, start, end, _pct, meth, unmeth = row
+        if meth + unmeth < min_coverage:
+            return 0
+        wgbs = fraction(row) if value is None else value
+        if not np.isfinite(wgbs):
+            return 0
+        if wgbs < 0 or wgbs > 1:
+            raise ValueError("Parsed methylation fractions must be within [0, 1]")
+        handle.write(f"{chrom}\t{start - 1}\t{end}\t{wgbs:.12g}\n")
+        return 1
+
+    def write_pair(
+        handle,
+        first: tuple[str, int, int, float, float, float],
+        second: tuple[str, int, int, float, float, float],
+    ) -> int:
+        if deduplicate_method == "first":
+            return write_row(handle, first)
+        if deduplicate_method == "second":
+            return write_row(handle, second)
+        if deduplicate_method == "mean":
+            return write_row(handle, second, (fraction(first) + fraction(second)) / 2.0)
+        meth = first[4] + second[4]
+        unmeth = first[5] + second[5]
+        total = meth + unmeth
+        return write_row(handle, (second[0], second[1], second[2], 100.0 * meth / total if total else np.nan, meth, unmeth))
+
+    with opener(input_path, "rt") as source, output_path.open("w") as handle:
+        for line_no, line in enumerate(source, start=1):
+            row = parse_line(line)
+            if row is None or row[4] + row[5] < min_coverage:
+                continue
+            if line_no % chunksize == 0:
+                handle.flush()
+                print(
+                    f"[parse_bismark_cov] processed {line_no:,} input rows; wrote {total_rows:,} WGBS rows",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            if not deduplicate_cpg_strands:
+                total_rows += write_row(handle, row)
+                continue
+            if prev is None:
+                prev = row
+                continue
+            adjacent = prev[0] == row[0] and prev[2] + 1 == row[1]
+            if adjacent:
+                total_rows += write_pair(handle, prev, row)
+                prev = None
+            else:
+                total_rows += write_row(handle, prev)
+                prev = row
+        if prev is not None:
+            total_rows += write_row(handle, prev)
+
+    return pd.DataFrame({"rows_written": [total_rows]})
 
 
 def deduplicate_bismark_cpg_strands_counts(df: pd.DataFrame, sort: bool = True) -> pd.DataFrame:

@@ -1,5 +1,12 @@
 __pycache__/
 *.py[cod]
 .DS_Store
-data/
-tests/output/
+
+# Generated pipeline data and test outputs
+/data/
+/tests/output/
+
+# Bismark test raw inputs, downloaded references, intermediates, results, and figures
+/bismark_test/*.cov
+/bismark_test/*.cov.gz
+/bismark_test/data/

@@ -36,6 +36,12 @@ def main() -> None:
             "counts before calculating WGBS; 'second' matches the original README convention."
         ),
     )
+    parser.add_argument(
+        "--chunksize",
+        type=int,
+        default=None,
+        help="Stream large Bismark files in chunks. Requires --no-sort; sort the output with bedtools if needed.",
+    )
     args = parser.parse_args()
 
     out = parse_bismark_coverage(
@@ -46,8 +52,10 @@ def main() -> None:
         sort=not args.no_sort,
         deduplicate_cpg_strands=args.deduplicate_cpg_strands,
         deduplicate_method=args.deduplicate_method,
+        chunksize=args.chunksize,
     )
-    print(f"wrote {len(out)} WGBS rows to {args.output}")
+    rows_written = int(out["rows_written"].iloc[0]) if "rows_written" in out.columns else len(out)
+    print(f"wrote {rows_written} WGBS rows to {args.output}")
 
 
 if __name__ == "__main__":
