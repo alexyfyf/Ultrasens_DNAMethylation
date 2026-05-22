@@ -26,7 +26,7 @@ finish_step() {
 
 COV="$SCRIPT_DIR/CB_A_1_val_1_bismark_bt2_pe.deduplicated.bismark.cov.gz"
 SAMPLE="CB_A"
-SCOPE="${SCOPE:-genome}"
+SCOPE="${SCOPE:-chr1}"
 DENSITY_WINDOW="${DENSITY_WINDOW:-50}"
 MIN_COVERAGE="${MIN_COVERAGE:-1}"
 INCLUDE_NON_STANDARD_CONTIGS="${INCLUDE_NON_STANDARD_CONTIGS:-0}"
@@ -46,10 +46,20 @@ fi
 
 STANDARD_CHROMS=(chr1 chr2 chr3 chr4 chr5 chr6 chr7 chr8 chr9 chr10 chr11 chr12 chr13 chr14 chr15 chr16 chr17 chr18 chr19 chr20 chr21 chr22 chrX chrY chrM)
 STANDARD_CHROM_REGEX='^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$'
+case "$INCLUDE_NON_STANDARD_CONTIGS" in
+  1|true|TRUE|yes|YES)
+    CGI_STANDARD_CHROMOSOMES_ONLY=0
+    CGI_CONTIG_SCOPE="standard + random/alt/unplaced contigs"
+    ;;
+  *)
+    CGI_STANDARD_CHROMOSOMES_ONLY=1
+    CGI_CONTIG_SCOPE="standard chromosomes only"
+    ;;
+esac
 
 if [[ "$SCOPE" == "chr1" ]]; then
   ANALYSIS_SUFFIX="Chr1"
-  CONTIG_SCOPE="chr1 only"
+  INDIVIDUAL_CPG_SCOPE="chr1 only"
   STANDARD_CHROMOSOMES_ONLY=1
   FASTA_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr1.fa.gz"
   FASTA="$RAW_DIR/chr1.hg38.fa.gz"
@@ -57,12 +67,12 @@ elif [[ "$SCOPE" == "genome" ]]; then
   case "$INCLUDE_NON_STANDARD_CONTIGS" in
     1|true|TRUE|yes|YES)
       ANALYSIS_SUFFIX="hg38_all_contigs"
-      CONTIG_SCOPE="standard + random/alt/unplaced contigs"
+      INDIVIDUAL_CPG_SCOPE="standard + random/alt/unplaced contigs"
       STANDARD_CHROMOSOMES_ONLY=0
       ;;
     *)
       ANALYSIS_SUFFIX="hg38_standard_chromosomes"
-      CONTIG_SCOPE="standard chromosomes only"
+      INDIVIDUAL_CPG_SCOPE="standard chromosomes only"
       STANDARD_CHROMOSOMES_ONLY=1
       ;;
   esac
@@ -74,11 +84,11 @@ else
 fi
 
 log "starting hg38 Bismark pipeline"
-log "sample=$SAMPLE scope=$SCOPE contig_scope=$CONTIG_SCOPE density_window=$DENSITY_WINDOW min_coverage=$MIN_COVERAGE python=$PYTHON_BIN"
+log "sample=$SAMPLE individual_cpg_scope=$SCOPE individual_cpg_contigs=$INDIVIDUAL_CPG_SCOPE cpg_island_contigs=$CGI_CONTIG_SCOPE density_window=$DENSITY_WINDOW min_coverage=$MIN_COVERAGE python=$PYTHON_BIN"
 log "data_dir=$DATA_DIR"
 log "sample_output_dir=$SAMPLE_DIR"
-if [[ "$SCOPE" == "genome" && "$STANDARD_CHROMOSOMES_ONLY" -eq 1 ]]; then
-  log "default genome mode excludes random/alt/unplaced contigs; set INCLUDE_NON_STANDARD_CONTIGS=1 to include them"
+if [[ "$INCLUDE_NON_STANDARD_CONTIGS" != "1" && "$INCLUDE_NON_STANDARD_CONTIGS" != "true" && "$INCLUDE_NON_STANDARD_CONTIGS" != "TRUE" && "$INCLUDE_NON_STANDARD_CONTIGS" != "yes" && "$INCLUDE_NON_STANDARD_CONTIGS" != "YES" ]]; then
+  log "default analysis excludes random/alt/unplaced contigs; set INCLUDE_NON_STANDARD_CONTIGS=1 to include them"
 fi
 
 if [[ ! -s "$RAW_DIR/cpgIslandExt_hg38.txt.gz" ]]; then
@@ -92,7 +102,7 @@ fi
 
 log "converting hg38 CpG island annotation to BED"
 gzip -cd "$RAW_DIR/cpgIslandExt_hg38.txt.gz" \
-  | awk -v standard_only="$STANDARD_CHROMOSOMES_ONLY" -v standard_regex="$STANDARD_CHROM_REGEX" \
+  | awk -v standard_only="$CGI_STANDARD_CHROMOSOMES_ONLY" -v standard_regex="$STANDARD_CHROM_REGEX" \
       'BEGIN{OFS="\t"} !standard_only || $2 ~ standard_regex {print $2,$3,$4,$8,$7,++n}' \
   > "$WORK_DIR/hg38_cpg_islands.bed"
 finish_step "$WORK_DIR/hg38_cpg_islands.bed"
@@ -262,7 +272,7 @@ finish_step "$FIGURES_DIR/temporal_cme_mean_methylation.png"
 finish_step "$FIGURES_DIR/temporal_cme_inset.png"
 
 log "writing consolidated metrics summary"
-"$PYTHON_BIN" - "$RESULTS_DIR" "$SAMPLE" "$ANALYSIS_SUFFIX" "$CONTIG_SCOPE" "$MIN_COVERAGE" <<'PY'
+"$PYTHON_BIN" - "$RESULTS_DIR" "$SAMPLE" "$ANALYSIS_SUFFIX" "$INDIVIDUAL_CPG_SCOPE" "$CGI_CONTIG_SCOPE" "$MIN_COVERAGE" <<'PY'
 import csv
 import json
 import sys
@@ -271,8 +281,9 @@ from pathlib import Path
 results = Path(sys.argv[1])
 sample = sys.argv[2]
 analysis_suffix = sys.argv[3]
-contig_scope = sys.argv[4]
-min_coverage = int(sys.argv[5])
+individual_cpg_scope = sys.argv[4]
+cgi_contig_scope = sys.argv[5]
+min_coverage = int(sys.argv[6])
 cgi = json.loads((results / "cpg_island_methylation_by_length_summary.json").read_text())
 cpg = json.loads((results / "individual_cpg_methylation_by_density_summary.json").read_text())
 switch = list(csv.DictReader((results / "individual_cpg_switch_parameters.csv").open()))[0]
@@ -282,7 +293,7 @@ island = next(iter(cgi.values()))
 summary = {
     "sample": sample,
     "genome": "hg38",
-    "contig_scope": contig_scope,
+    "cpg_island_contig_scope": cgi_contig_scope,
     "min_coverage": min_coverage,
     "cgi_level": {
         "LD50_bp": island["cgi_crossover_bp"],
@@ -290,6 +301,7 @@ summary = {
     },
     "individual_cpg": {
         "scope": analysis_suffix,
+        "contig_scope": individual_cpg_scope,
         "ED50": cpg["ED50"],
         "DirectED50": cpg["DirectED50"],
         "DirectSlope": cpg["DirectSlope"],
@@ -314,7 +326,8 @@ summary = {
         [
             "metric,value",
             f"Individual_CpG_scope,{analysis_suffix}",
-            f"Contig_scope,{contig_scope}",
+            f"Individual_CpG_contig_scope,{individual_cpg_scope}",
+            f"CpG_island_contig_scope,{cgi_contig_scope}",
             f"Min_coverage,{min_coverage}",
             f"CGI_LD50_bp,{summary['cgi_level']['LD50_bp']}",
             f"CpG_ED50,{cpg['ED50']}",
