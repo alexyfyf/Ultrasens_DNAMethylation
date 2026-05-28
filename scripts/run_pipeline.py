@@ -38,12 +38,11 @@ def main() -> None:
     run([py, str(here / "calculate_cpg_density.py"), "--cpg-csv", args.cpg_csv, "--window", str(args.density_window), "--chrom", args.chrom, "--output", str(density_bed)])
     run([py, str(here / "intersect_wgbs_cpg_density.py"), "--wgbs-bed", args.wgbs_bed, "--density-bed", str(density_bed), "--output", str(cpg_intersect)])
     run([py, str(here / "aggregate_cgi_level.py"), "--cgi-intersection", args.cgi_intersection, "--output", str(island)])
-    run([py, str(here / "bivariate_histogram_human_wt.py"), "--island-files", str(island), "--output-json", str(out / "cgi_bivariate_summary.json")])
-    run([py, str(here / "read_plot_data_wt.py"), "--input", str(cpg_intersect), "--output-prefix", str(data_prefix), "--summary-json", str(out / "cpg_density_summary.json")])
+    run([py, str(here / "plot_cgi_methylation_bivariate.py"), "--island-files", str(island), "--output-json", str(out / "cgi_bivariate_summary.json")])
+    run([py, str(here / "analyze_cpg_density_switch.py"), "--input", str(cpg_intersect), "--output-prefix", str(data_prefix), "--summary-json", str(out / "cpg_density_summary.json")])
     run([py, str(here / "fit_cme_methylation.py"), "--data-struct", str(data_prefix.with_suffix(".npz")), "--output-prefix", str(fit_prefix), "--n-cpg", str(args.n_cpg), "--iterations", str(args.fit_iterations)])
     run([py, str(here / "run_temporal_cme_example.py"), "--fit-result", str(fit_prefix.with_suffix(".npz")), "--output-prefix", str(temporal_prefix), "--n-cpg", str(args.n_cpg)])
 
 
 if __name__ == "__main__":
     main()
-

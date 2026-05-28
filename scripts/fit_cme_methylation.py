@@ -19,7 +19,7 @@ def parse_vector(value: str) -> list[float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Python rewrite of CMEFitting/LoopFit.m + Fit_CME_Methylation_PS.m")
-    parser.add_argument("--data-struct", required=True, help=".npz/.json exported by read_plot_data_wt.py, or .mat with scipy.")
+    parser.add_argument("--data-struct", required=True, help=".npz/.json exported by analyze_cpg_density_switch.py, or .mat with scipy.")
     parser.add_argument("--output-prefix", required=True)
     parser.add_argument("--n-cpg", type=int, default=27)
     parser.add_argument("--iterations", type=int, default=60)

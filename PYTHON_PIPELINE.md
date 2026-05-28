@@ -43,14 +43,18 @@ See `DATA_PREP.md` for download and conversion details.
 ## One-To-One Script Map
 
 - `CpGDensity_Calc.m` -> `scripts/calculate_cpg_density.py`
-- `WGBS_CpGIntersect_AllData.command` -> `scripts/intersect_wgbs_cpg_density.py`, `scripts/intersect_wgbs_cpg_density_all.py`, or `scripts/intersect_wgbs_cpg_density_all_bedtools.sh`
+- `WGBS_CpGIntersect_AllData.command` -> `scripts/intersect_wgbs_cpg_density.py`, `scripts/intersect_known_wgbs_cpg_density.py`, or `scripts/intersect_known_wgbs_cpg_density_bedtools.sh`
 - Opposite-strand CpG dyad deduplication for WIG/BED/COV inputs -> `scripts/deduplicate_cpg_strands.py` or `scripts/parse_bismark_cov.py --deduplicate-cpg-strands`
-- `BivariateHistogram_HumanWT_example.m` -> `scripts/bivariate_histogram_human_wt.py`
-- `IndividualCGIMethylationChange_HUES64_example.m` -> `scripts/individual_cgi_methylation_change.py`
-- `ReadPlotData_WT_example.m` -> `scripts/read_plot_data_wt.py`, `scripts/read_plot_data_wt_all.py`, `scripts/plot_figure5a_cpg_density.py`, and `scripts/plot_switch_parameters.py`
+- `BivariateHistogram_HumanWT_example.m` -> `scripts/plot_cgi_methylation_bivariate.py`
+- `IndividualCGIMethylationChange_HUES64_example.m` -> `scripts/compare_cgi_methylation_change.py`
+- `ReadPlotData_WT_example.m` -> `scripts/analyze_cpg_density_switch.py`, `scripts/analyze_cpg_density_switch_batch.py`, `scripts/plot_cpg_density_methylation_summary.py`, and `scripts/plot_cpg_switch_parameters.py`
 - `CMEFitting/LoopFit.m`, `CMEFitting/Fit_CME_Methylation_PS.m`, `CMEFitting/CMEModel.m` -> `scripts/fit_cme_methylation.py` and `python/ultrasens/cme.py`
 - `ExampleCMEFit/CallFitting.m` -> `scripts/fit_example_cme.py`
 - `RunTemporalCMEExample/*.m` -> `scripts/run_temporal_cme_example.py`
+
+Older script names such as `scripts/read_plot_data_wt.py` and
+`scripts/bivariate_histogram_human_wt.py` are kept as compatibility wrappers
+around the generic names above.
 
 ## A. CpG Island-Level Analysis
 
@@ -101,7 +105,7 @@ CGIno,CpGNum,CGIlen,WGBS
 This replaces `BivariateHistogram_HumanWT_example.m`.
 
 ```bash
-python scripts/bivariate_histogram_human_wt.py \
+python scripts/plot_cgi_methylation_bivariate.py \
   --island-files \
     data/IslandLvl_agg_HUES64WT \
     data/IslandLvl_agg_HUES8WT \
@@ -122,7 +126,7 @@ Main outputs:
 This replaces `IndividualCGIMethylationChange_HUES64_example.m`.
 
 ```bash
-python scripts/individual_cgi_methylation_change.py \
+python scripts/compare_cgi_methylation_change.py \
   --file-a data/IslandLvl_agg_HUES64_DNMT3_dko_early \
   --file-b data/IslandLvl_agg_HUES64WT \
   --output data/HUES64_DNMT3_dko_early_CGI_change.csv \
@@ -176,7 +180,7 @@ python scripts/intersect_wgbs_cpg_density.py \
 All original repo dataset names, pure Python:
 
 ```bash
-python scripts/intersect_wgbs_cpg_density_all.py \
+python scripts/intersect_known_wgbs_cpg_density.py \
   --data-dir data \
   --density-bed data/CpGDensities_W50.bed \
   --output-dir data/wgbs_density_intersections
@@ -185,7 +189,7 @@ python scripts/intersect_wgbs_cpg_density_all.py \
 All original repo dataset names, using installed `bedtools`:
 
 ```bash
-bash scripts/intersect_wgbs_cpg_density_all_bedtools.sh \
+bash scripts/intersect_known_wgbs_cpg_density_bedtools.sh \
   data \
   data/bedtools_density_intersections \
   data/CpGDensities_W50.bed
@@ -204,7 +208,7 @@ This replaces the core of `ReadPlotData_WT_example.m`.
 Single sample:
 
 ```bash
-python scripts/read_plot_data_wt.py \
+python scripts/analyze_cpg_density_switch.py \
   --input data/bedtools_density_intersections/HUES8WT_CpGsOnly_Chr1.bed \
   --output-prefix data/read_plot_wt_checks/HUES8WT_CpGsOnly_Chr1 \
   --summary-json data/read_plot_wt_checks/HUES8WT_CpGsOnly_Chr1_summary.json \
@@ -222,7 +226,7 @@ Important output fields:
 Multiple WT samples:
 
 ```bash
-python scripts/read_plot_data_wt_all.py \
+python scripts/analyze_cpg_density_switch_batch.py \
   --inputs \
     data/bedtools_density_intersections/HUES64WT_CpGsOnly_Chr1.bed \
     data/bedtools_density_intersections/HUES8WT_CpGsOnly_Chr1.bed \
@@ -238,7 +242,7 @@ python scripts/read_plot_data_wt_all.py \
 This plots mean methylation, median/IQR methylation, and the Hill fit to mean methylation:
 
 ```bash
-python scripts/plot_figure5a_cpg_density.py \
+python scripts/plot_cpg_density_methylation_summary.py \
   --inputs \
     data/bedtools_density_intersections/HUES8WT_CpGsOnly_Chr1.bed \
     data/bedtools_density_intersections/HUES8_TKO_CpGsOnly_Chr1.bed \
@@ -255,7 +259,7 @@ This plots Hill `n` versus `K` and direct slope versus `ED50`.
 From CpG-density input files:
 
 ```bash
-python scripts/plot_switch_parameters.py \
+python scripts/plot_cpg_switch_parameters.py \
   --inputs \
     data/bedtools_density_intersections/HUES64WT_CpGsOnly_Chr1.bed \
     data/bedtools_density_intersections/HUES8WT_CpGsOnly_Chr1.bed \
@@ -269,7 +273,7 @@ python scripts/plot_switch_parameters.py \
 Or from a curated CSV table with optional error bars:
 
 ```bash
-python scripts/plot_switch_parameters.py \
+python scripts/plot_cpg_switch_parameters.py \
   --table data/figure5bc_switch_parameters.csv \
   --cohort-order HUES64 HUES8 \
   --output data/figure5bc_switch_parameters.png

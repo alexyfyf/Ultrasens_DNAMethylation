@@ -69,7 +69,7 @@ curl -L -C - \
   -o data/FILENAME
 ```
 
-Known original-repo dataset names used by `scripts/intersect_wgbs_cpg_density_all.py`:
+Known original-repo dataset names used by `scripts/intersect_known_wgbs_cpg_density.py`:
 
 | Sample | Processed WGBS filename expected in `data/` | Output CpG-density filename |
 |---|---|---|
@@ -324,7 +324,7 @@ bedtools intersect \
 Run all original-repo names with:
 
 ```bash
-bash scripts/intersect_wgbs_cpg_density_all_bedtools.sh \
+bash scripts/intersect_known_wgbs_cpg_density_bedtools.sh \
   data \
   data/bedtools_density_intersections \
   data/CpGDensities_W50.bed

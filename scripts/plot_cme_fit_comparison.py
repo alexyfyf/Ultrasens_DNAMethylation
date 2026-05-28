@@ -21,7 +21,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Plot CME fitted collaborative model versus no-collaboration standard model."
     )
-    parser.add_argument("--data-struct", required=True, help=".npz/.json DataStruct from read_plot_data_wt.py.")
+    parser.add_argument("--data-struct", required=True, help=".npz/.json DataStruct from analyze_cpg_density_switch.py.")
     parser.add_argument(
         "--fit-result",
         required=True,
