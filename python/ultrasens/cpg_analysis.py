@@ -225,6 +225,79 @@ def plot_cpg_summary(summary: dict, output_path: str | Path) -> None:
     plt.close(fig)
 
 
+def plot_cpg_matlab_style(
+    input_path: str | Path,
+    summary: dict,
+    output_path: str | Path,
+    label: str | None = None,
+    hypo_cutoff: float = 0.2,
+) -> None:
+    """Plot the ReadPlotData_WT_example.m-style CpG heatmap and class curves."""
+    plt = optional_pyplot()
+    if plt is None:
+        return
+    hyper_cutoff = 1 - hypo_cutoff
+    line_size = 2
+    font_size = 20
+
+    df = pd.read_csv(input_path, sep="\t", header=None)
+    df = maybe_named_columns(df, CPG_WGBS_DENSITY_COLUMNS)
+    x = df["Density"].to_numpy(float)
+    y = df["WGBS"].to_numpy(float)
+    if np.nanmax(y) > 0:
+        y = y / np.nanmax(y)
+
+    density_vals = np.sort(np.unique(x))
+    ygrid = np.linspace(0, np.nanmax(y), 50)
+    counts = np.zeros((len(density_vals), len(ygrid)), dtype=int)
+    for xi, yi in zip(x, y):
+        ix = int(np.searchsorted(density_vals, xi, side="left"))
+        iy = min(int(np.searchsorted(ygrid, yi, side="left")), len(ygrid) - 1)
+        counts[ix, iy] += 1
+
+    probability = counts / max(len(x), 1)
+    heat = -np.log(np.where(probability > 0, probability, np.nan)).T
+
+    title_label = label or Path(input_path).stem.replace("_CpGsOnly_Chr1", "")
+    with plt.rc_context(
+        {
+            "font.family": "serif",
+            "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+            "axes.grid": False,
+        }
+    ):
+        fig, axes = plt.subplots(2, 1, figsize=(4.8, 7.4), constrained_layout=True)
+
+        ax = axes[0]
+        mesh = ax.pcolormesh(density_vals, ygrid, heat, shading="auto", cmap="viridis_r")
+        ax.axhline(hypo_cutoff, linestyle="--", color="green", linewidth=line_size)
+        ax.axhline(hyper_cutoff, linestyle="--", color="red", linewidth=line_size)
+        ax.set_ylabel("Methyl. Frac.", fontsize=font_size)
+        ax.set_title(title_label, fontsize=font_size)
+        ax.set_yticks([0, 0.5, 1])
+        ax.tick_params(direction="out", length=4, labelsize=font_size)
+        cbar = fig.colorbar(mesh, ax=ax)
+        cbar.set_label("-log(Probability)", fontsize=font_size)
+        cbar.ax.tick_params(labelsize=font_size)
+
+        ax = axes[1]
+        density = np.asarray(summary["densityvals"], dtype=float)
+        ax.plot(density, summary["Hypo"], "-o", linewidth=line_size, color="b", label=f"Hypo < {hypo_cutoff}")
+        ax.plot(density, summary["Hyper"], "-o", linewidth=line_size, color="r", label=f"Hyper > {hyper_cutoff}")
+        ax.plot(density, summary["Inter"], "-o", linewidth=line_size, color="k", label="Inter")
+        ax.set_xlabel("Local CpG Density", fontsize=font_size)
+        ax.set_ylabel("Frac. of CpGs", fontsize=font_size)
+        ax.set_xlim(float(np.min(density)), float(np.max(density)))
+        ax.set_ylim(0, 1)
+        ax.set_title(f"ED50 = {float(summary['ED50']):.6g}", fontsize=font_size)
+        ax.legend(loc="center right", fontsize=font_size - 4, frameon=True)
+        ax.tick_params(direction="out", length=4, labelsize=font_size)
+
+        ensure_dir(Path(output_path).parent)
+        fig.savefig(output_path, dpi=300)
+        plt.close(fig)
+
+
 def hill_fit_to_mean(summary: dict) -> np.ndarray:
     """Return the ReadPlotData_WT_example.m Hill fit on the raw mean-methylation scale."""
     density = np.asarray(summary["densityvals"], dtype=float)
