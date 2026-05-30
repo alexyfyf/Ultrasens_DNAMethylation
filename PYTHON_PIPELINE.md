@@ -42,15 +42,15 @@ See `DATA_PREP.md` for download and conversion details.
 
 ## One-To-One Script Map
 
-- `CpGDensity_Calc.m` -> `scripts/calculate_cpg_density.py`
-- `WGBS_CpGIntersect_AllData.command` -> `scripts/intersect_wgbs_cpg_density.py`, `scripts/intersect_known_wgbs_cpg_density.py`, or `scripts/intersect_known_wgbs_cpg_density_bedtools.sh`
+- `paper_matlab_reference/CpGDensity_Calc.m` -> `scripts/calculate_cpg_density.py`
+- `paper_matlab_reference/WGBS_CpGIntersect_AllData.command` -> `scripts/intersect_wgbs_cpg_density.py`, `scripts/intersect_known_wgbs_cpg_density.py`, or `scripts/intersect_known_wgbs_cpg_density_bedtools.sh`
 - Opposite-strand CpG dyad deduplication for WIG/BED/COV inputs -> `scripts/deduplicate_cpg_strands.py` or `scripts/parse_bismark_cov.py --deduplicate-cpg-strands`
-- `BivariateHistogram_HumanWT_example.m` -> `scripts/plot_cgi_methylation_bivariate.py`
-- `IndividualCGIMethylationChange_HUES64_example.m` -> `scripts/compare_cgi_methylation_change.py`
-- `ReadPlotData_WT_example.m` -> `scripts/analyze_cpg_density_switch.py`, `scripts/analyze_cpg_density_switch_batch.py`, `scripts/plot_cpg_density_methylation_summary.py`, and `scripts/plot_cpg_switch_parameters.py`
-- `CMEFitting/LoopFit.m`, `CMEFitting/Fit_CME_Methylation_PS.m`, `CMEFitting/CMEModel.m` -> `scripts/fit_cme_methylation.py` and `python/ultrasens/cme.py`
-- `ExampleCMEFit/CallFitting.m` -> `scripts/fit_example_cme.py`
-- `RunTemporalCMEExample/*.m` -> `scripts/run_temporal_cme_example.py`
+- `paper_matlab_reference/BivariateHistogram_HumanWT_example.m` -> `scripts/plot_cgi_methylation_bivariate.py`
+- `paper_matlab_reference/IndividualCGIMethylationChange_HUES64_example.m` -> `scripts/compare_cgi_methylation_change.py`
+- `paper_matlab_reference/ReadPlotData_WT_example.m` -> `scripts/analyze_cpg_density_switch.py`, `scripts/analyze_cpg_density_switch_batch.py`, `scripts/plot_cpg_density_methylation_summary.py`, and `scripts/plot_cpg_switch_parameters.py`
+- `paper_matlab_reference/CMEFitting/LoopFit.m`, `paper_matlab_reference/CMEFitting/Fit_CME_Methylation_PS.m`, `paper_matlab_reference/CMEFitting/CMEModel.m` -> `scripts/fit_cme_methylation.py` and `python/ultrasens/cme.py`
+- `paper_matlab_reference/ExampleCMEFit/CallFitting.m` -> `scripts/fit_example_cme.py`
+- `paper_matlab_reference/RunTemporalCMEExample/*.m` -> `scripts/run_temporal_cme_example.py`
 
 Older script names such as `scripts/read_plot_data_wt.py` and
 `scripts/bivariate_histogram_human_wt.py` are kept as compatibility wrappers
@@ -102,7 +102,7 @@ CGIno,CpGNum,CGIlen,WGBS
 
 ### A3. WT Bivariate Histograms And EL50/ED50-Style Crossovers
 
-This replaces `BivariateHistogram_HumanWT_example.m`.
+This replaces `paper_matlab_reference/BivariateHistogram_HumanWT_example.m`.
 
 ```bash
 python scripts/plot_cgi_methylation_bivariate.py \
@@ -123,7 +123,7 @@ Main outputs:
 
 ### A4. CGI Methylation Change Between WT And KO
 
-This replaces `IndividualCGIMethylationChange_HUES64_example.m`.
+This replaces `paper_matlab_reference/IndividualCGIMethylationChange_HUES64_example.m`.
 
 ```bash
 python scripts/compare_cgi_methylation_change.py \
@@ -146,7 +146,7 @@ Here `DeltaMeth = file-a WGBS - file-b WGBS`, so the example above reports KO mi
 
 ### B1. Calculate Local CpG Density
 
-This replaces `CpGDensity_Calc.m`.
+This replaces `paper_matlab_reference/CpGDensity_Calc.m`.
 
 Input is a CpG coordinate CSV from `seqkit locate`, with at least a `start` column. For the paper-style individual CpG analysis, use a 50 bp window:
 
@@ -166,7 +166,7 @@ chr1  start  end  Density
 
 ### B2. Intersect WGBS With CpG Density
 
-This replaces `WGBS_CpGIntersect_AllData.command`.
+This replaces `paper_matlab_reference/WGBS_CpGIntersect_AllData.command`.
 
 Single sample, pure Python:
 
@@ -203,7 +203,7 @@ chr  start  end  WGBS  Density
 
 ### B3. Classify CpGs And Fit Density Switches
 
-This replaces the core of `ReadPlotData_WT_example.m`.
+This replaces the core of `paper_matlab_reference/ReadPlotData_WT_example.m`.
 
 Single sample:
 
@@ -291,7 +291,7 @@ Optional error columns include `HillKErr`, `HillNErr`, `DirectED50Err`, `DirectS
 
 ### C1. Fit The CME Model
 
-This replaces `CMEFitting/LoopFit.m` and `CMEFitting/Fit_CME_Methylation_PS.m`.
+This replaces `paper_matlab_reference/CMEFitting/LoopFit.m` and `paper_matlab_reference/CMEFitting/Fit_CME_Methylation_PS.m`.
 
 Fast smoke fit:
 
@@ -347,7 +347,7 @@ The standard model is created by setting collaborative rates `k5:k12` to zero an
 
 ### C3. Run Temporal CME Example
 
-This replaces `RunTemporalCMEExample/Plot_ExampleTemporal.m` and related model files:
+This replaces `paper_matlab_reference/RunTemporalCMEExample/Plot_ExampleTemporal.m` and related model files:
 
 ```bash
 python scripts/run_temporal_cme_example.py \
